@@ -1,0 +1,73 @@
+{
+	"init": {
+		"site_id": "5702576",
+		"app_id": "771356",
+		"partner": "pangle_771356",
+		"secure_key": "d525fddce651b2569c901417b13fc97a",
+		"secure_key_d": "eb071e777af6d8518cf0dcdf85b97e7a"
+	},
+	"feed": {
+		"news_list_ad_code_id": "",
+		"news_first_ad_code_id": "",
+		"news_second_ad_code_id": "",
+		"video_first_ad_code_id": "",
+		"video_second_ad_code_id": "",
+		"related_ad_code_id": "",
+		"news_draw_ad_code_id": "966776099",
+		"news_draw_native_ad_code_id": "966776110",
+		"news_outer_list_ad_code_id": "",
+		"news_outer_first_ad_code_id": "",
+		"news_outer_second_ad_code_id": "",
+		"outer_video_second_ad_code_id": "",
+		"outer_related_ad_code_id": "",
+		"news_outer_draw_ad_code_id": "966776104",
+		"news_outer_draw_native_ad_code_id": "966776114",
+		"news_interstitial_code_id": ""
+	},
+	"small_video": {
+		"draw_ad_code_id": "966776102",
+		"draw_native_ad_code_id": "966776100",
+		"grid_ad_code_id": "966776101",
+		"grid_draw_ad_code_id": "966776109",
+		"grid_draw_native_ad_code_id": "966776103",
+		"video_card_ad_code_id": "966776118",
+		"video_card_draw_ad_code_id": "966776105",
+		"video_card_draw_native_ad_code_id": "966776098",
+		"interstitial_ad_code_id": "",
+		"interstitial_note_ad_code_id": "966776117",
+		"staggered_grid_ad_code_id": "966776106",
+		"staggered_grid_draw_ad_code_id": "966776102",
+		"staggered_grid_draw_native_ad_code_id": "966776100",
+		"draw_interstitial_ad_code_id": "966776095",
+		"draw_fullscreen_interstitial_ad_code_id": "966776096",
+		"draw_banner_code_id": "966776097",
+		"drama_rewarded_ad_code_id": "966776094",
+		"drama_rewarded_ad_code_id_02": "966776113",
+		"drama_draw_ad_code_id": "966776120",
+		"staggered_grid_ad_code_id_02": "966776107"
+	},
+	"novel": {
+		"status": 0,
+		"pre_ad_code_id": "",
+		"mid_ad_code_id": "",
+		"exciting_ad_code_id": "",
+		"interstitial_code_id": "",
+		"banner_ad_code_id": "",
+		"end_ad_code_id": ""
+	},
+	"live": null,
+	"license_config": [
+		{
+			"PackageName": "com.minshu.gospelife",
+			"BundleId": "com.minshu.gospelife",
+			"StartTime": "20250526T023845Z",
+			"ExpireTime": "20270526T023845Z",
+			"CreatedTime": "20250526T023844Z",
+			"Signature": "dBzdM2FMFz36kaWVca0oTVI+VlViPndqFGqEnSStRGjvjZZIyac0f7rvd0Z9WqdGLZvU1NQGbjwm3RUZnPfKDRm+hGnViyqXjgfo/AGkvG57Y8jHBv2SGM53iK6ij4WpZ+5gG25+DhfWvtUBD/E9MOjM3TXh/7JiN1IBTvhPmMpdXJQA7MIXxxEYk1IxgttoO4w4LgOttevNOoTsq6JeS5mi8WzHUggi7h2PdpwHhPllD6MN8xfFv6T2QbXDQxlb8ehk+6kvH5Uc++DywbOZFK6P+PbXqwBldXXckt5xcYoBAm4as3EsJM/op6Zyu/7A7vdU5anpc8Znl0XPoU3drA==",
+			"Content": "eyJJZCI6IjE5NTU2MTI2NzQiLCAiVmVyc2lvbiI6MiwgIkNoYW5uZWwiOiJhZF9jc2oiLCAiVHlwZSI6MiwgIlBhY2thZ2VOYW1lIjoiY29tLm1pbnNodS5nb3NwZWxpZmUiLCAiQnVuZGxlSWQiOiJjb20ubWluc2h1Lmdvc3BlbGlmZSIsICJNb2R1bGVzIjpbeyJOYW1lIjoidm9kX3BsYXkiLCAiRWRpdGlvbiI6InByZW1pdW1fZWRpdGlvbiIsICJTdGFydFRpbWUiOjE3NDgyMjcxMjQ5NjQsICJFeHBpcmVUaW1lIjoxODExMjk5MTI0OTY0LCAiRXhwaXJlQnVmZmVyIjoxNTU1MjAwMDAwMH1dLCAiRmlsZVZlcnNpb24iOiIxNzQ4MjI3MTI0OTc1NDIyODk5In0=",
+			"MainURL": "https://vod-license-m.volccdn.com/vod-license/l-1955612674-ch-ad_csj-a-771356.lic?lk3s=0d9f7a7d\u0026x-expires=4901827124\u0026x-signature=AG8kMlsetZO4k4EYuP6ewHvm7kM%3D",
+			"BackupURL": "https://vod-license-b.volccdn.com/vod-license/l-1955612674-ch-ad_csj-a-771356.lic?lk3s=0d9f7a7d\u0026x-expires=4901827124\u0026x-signature=wbHvqSDoFZLXwPQCvFzUfc12xhc%3D",
+			"Id": "1955612674"
+		}
+	]
+}

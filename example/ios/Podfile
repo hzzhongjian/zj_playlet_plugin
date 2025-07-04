@@ -1,0 +1,54 @@
+# Uncomment this line to define a global platform for your project
+# platform :ios, '12.0'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+# 导入短剧SDK需要在Podfile文件里添加下面两个私有源
+source 'https://github.com/CocoaPods/Specs.git'
+source 'https://github.com/volcengine/volcengine-specs.git'
+
+target 'Runner' do
+
+  # # 再使用pod导入依赖库
+  # pod 'Ads-CN', '6.8.1.3', :subspecs => [ 'BUAdSDK' ] #为保证兼容性 建议使用广告SDK版本
+  # pod 'TTSDKFramework', '1.42.3.4-premium', :subspecs => [ 'Player-SR' ]
+  # pod 'PangrowthX', '2.8.0.0', :subspecs => [ 'shortplay' ]
+  # # 需要导入以下两个适配器
+  # pod 'ZJSDK/ZJSDKModuleCSJCompatible'
+  # pod 'ZJSDK/ZJSDKModuleCSJPlayletSDK'
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+  end
+end
