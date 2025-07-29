@@ -3,10 +3,9 @@
 #import <ZJSDK/ZJSDK.h>
 #import "ZJPlayletWrapper.h"
 #import "ZJPlayletConfig.h"
+#import "ZJPlayletAdPlatformView.h"
 
 @interface ZjPlayletPlugin ()
-
-@property (nonatomic, strong) FlutterResult callback;
 
 @property (nonatomic, strong) ZJPlayletWrapper *playletAd;
 
@@ -14,7 +13,9 @@
 
 @implementation ZjPlayletPlugin
 
+static FlutterMethodChannel *_methodChannel = nil;
 static ZjPlayletPlugin *zjPlayletFlutterPlugin = nil;
+static FlutterBasicMessageChannel *_messageChannel = nil;
 
 + (ZjPlayletPlugin *)shareInstance {
     static dispatch_once_t onceToken;
@@ -25,53 +26,60 @@ static ZjPlayletPlugin *zjPlayletFlutterPlugin = nil;
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
+    ZJPlayletAdPlatformViewFactory *playletAdPlatformViewFactory = [[ZJPlayletAdPlatformViewFactory alloc] initWithRegistrar:registrar];
+    [registrar registerViewFactory:playletAdPlatformViewFactory withId:@"com.zjplaylet.adsdk/playletAd"];
     
+    _methodChannel = [FlutterMethodChannel methodChannelWithName:@"com.zjplaylet.adsdk/method" binaryMessenger:[registrar messenger]];
+    [registrar addMethodCallDelegate:[ZjPlayletPlugin shareInstance] channel:_methodChannel];
     [ZjPlayletPlugin shareInstance].messenger = registrar.messenger;
-    NSString *channelId = @"8080";
-    NSString *channel = [NSString stringWithFormat:@"com.zjplaylet.adsdk/event_%@", channelId];
-    FlutterEventChannel *eventChannel = [FlutterEventChannel eventChannelWithName:channel binaryMessenger:[ZjPlayletPlugin shareInstance].messenger];
-    //设置FlutterStreamHandler协议代理
-    [eventChannel setStreamHandler:[ZjPlayletPlugin shareInstance]];
-
+    _messageChannel = [FlutterBasicMessageChannel messageChannelWithName:@"com.zjplaylet.adsdk/sdk_message" binaryMessenger:[registrar messenger] codec:FlutterJSONMessageCodec.sharedInstance];
+    
 }
 
 - (void)setMessenger:(NSObject<FlutterBinaryMessenger> *)messenger{
     _messenger = messenger;
-    ///建立通信通道 用来 监听Flutter 的调用和 调用Fluttter 方法 这里的名称要和Flutter 端保持一致
-    _methodChannel = [FlutterMethodChannel methodChannelWithName:@"com.zjplaylet.adsdk/method" binaryMessenger:messenger];
     __weak __typeof__(self) weakSelf = self;
     [_methodChannel setMethodCallHandler:^(FlutterMethodCall * _Nonnull call, FlutterResult  _Nonnull result) {
-        [weakSelf handleMethodCall:call result:result];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf handleMethodCall:call result:result];
     }];
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
-  NSLog(@"====>>>> flutter 调用了 %@方法", call.method);
-  if ([@"getSDKVersion" isEqualToString:call.method]) {
-      [self getSDKVersion:call];
-  } else if ([@"registerAppId" isEqualToString:call.method]) {
-    [self registerAppId:call];
-  } else if ([@"loadPlayletAd" isEqualToString:call.method]) {
-      [self loadPlayletAd:call];
-  } else if ([@"showPlayletAd" isEqualToString:call.method]) {
-      [self showPlayletAd:call];
-  } else {
-    result(FlutterMethodNotImplemented);
-  }
+    if ([@"registerPlayletMethodChannel" isEqualToString:call.method]) {
+        [self registerPlayletMethodChannel:call];
+    } else if ([@"getSDKVersion" isEqualToString:call.method]) {
+        [self getSDKVersion:call];
+    } else if ([@"registerAppId" isEqualToString:call.method]) {
+        [self registerAppId:call];
+    } else if ([@"loadPlayletAd" isEqualToString:call.method]) {
+        [self loadPlayletAd:call];
+    } else if ([@"showPlayletAd" isEqualToString:call.method]) {
+        [self showPlayletAd:call];
+    } else {
+        result(FlutterMethodNotImplemented);
+    }
+}
+
+- (void)registerPlayletMethodChannel:(FlutterMethodCall *)call
+{
+    [self callbackWithFunctionName:@"registerPlayletMethodChannel"
+                         eventName:@"registerPlayletMethodChannel" otherDic:@{@"info": @"success"} error:nil];
 }
 
 - (void)registerAppId:(FlutterMethodCall *)call {
     __weak __typeof(self) weakSelf = self;
-    NSDictionary  *dic = call.arguments;
+    NSDictionary *dic = call.arguments;
     NSString *appId = [dic objectForKey:@"appId"];
-    [ZJAdSDK registerAppId:appId callback:^(BOOL completed, NSDictionary * _Nonnull info) {
-        [weakSelf callbackWithEvent:completed?@"success":@"fail" otherDic:@{@"info":info} error:nil];
+    [ZJAdSDK registerAppId:appId callback:^(BOOL completed, NSDictionary *info) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"registerAppId" eventName:@"registerAppId" otherDic:@{@"info": info?info:@{}} error:nil];
     }];
 }
 
 - (void)getSDKVersion:(FlutterMethodCall *)call
 {
-    [self callbackWithEvent:@"SDKVersion" otherDic:@{@"SDKVersion": [ZJAdSDK SDKVersion]} error:nil];
+    [self callbackWithFunctionName:@"getSDKVersion" eventName:@"SDKVersion" otherDic:@{@"SDKVersion": [ZJAdSDK SDKVersion]} error:nil];
 }
 
 - (void)loadPlayletAd:(FlutterMethodCall*)call
@@ -92,82 +100,121 @@ static ZjPlayletPlugin *zjPlayletFlutterPlugin = nil;
     __weak __typeof__(self) weakSelf = self;
     // 短剧加载成功
     [self.playletAd setPlayletLoadSuccessBlock:^{
-        [weakSelf callbackWithEvent:@"PlayletLoadSuccess" otherDic:@{} error:nil];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"PlayletLoadSuccess" otherDic:@{} error:nil];
     }];
     // 短剧加载失败
     [self.playletAd setPlayletLoadFailureBlock:^{
-        [weakSelf callbackWithEvent:@"PlayletLoadFailure" otherDic:@{} error:nil];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"PlayletLoadFailure" otherDic:@{} error:nil];
     }];
-//    // 视频开始播放
-//    [self.playletAd setVideoDidStartPlayBlock:^{
-//        [weakSelf callbackWithEvent:@"VideoDidStartPlay" otherDic:@{} error:nil];
-//    }];
-//    // 视频暂停播放
-//    [self.playletAd setVideoDidPauseBlock:^{
-//        [weakSelf callbackWithEvent:@"VideoDidPause" otherDic:@{} error:nil];
-//    }];
-//    // 视频恢复播放
-//    [self.playletAd setVideoDidResumeBlock:^{
-//        [weakSelf callbackWithEvent:@"VideoDidResume" otherDic:@{} error:nil];
-//    }];
-//    // 视频停止播放
-//    [self.playletAd setVideoDidEndPlayBlock:^{
-//        [weakSelf callbackWithEvent:@"VideoDidEndPlay" otherDic:@{} error:nil];
-//    }];
+    // 视频开始播放
+    [self.playletAd setVideoDidStartPlayBlock:^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"VideoDidStartPlay" otherDic:@{} error:nil];
+    }];
+    // 视频暂停播放
+    [self.playletAd setVideoDidPauseBlock:^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"VideoDidPause" otherDic:@{} error:nil];
+    }];
+    // 视频恢复播放
+    [self.playletAd setVideoDidResumeBlock:^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"VideoDidResume" otherDic:@{} error:nil];
+    }];
+    // 视频停止播放
+    [self.playletAd setVideoDidEndPlayBlock:^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"VideoDidEndPlay" otherDic:@{} error:nil];
+    }];
     
     // 解锁流程开始
     [self.playletAd setShortplayPlayletDetailUnlockFlowStartBlock:^{
-        [weakSelf callbackWithEvent:@"ShortplayPlayletDetailUnlockFlowStart" otherDic:@{} error:nil];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayPlayletDetailUnlockFlowStart" otherDic:@{} error:nil];
     }];
     // 解锁流程取消
     [self.playletAd setShortplayPlayletDetailUnlockFlowCancelBlock:^{
-        [weakSelf callbackWithEvent:@"ShortplayPlayletDetailUnlockFlowCancel" otherDic:@{} error:nil];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayPlayletDetailUnlockFlowCancel" otherDic:@{} error:nil];
     }];
     // 解锁流程结束，回调解锁结果, success: 是否解锁成功
     [self.playletAd setShortplayPlayletDetailUnlockFlowEndBlock:^(BOOL success) {
-        [weakSelf callbackWithEvent:@"ShortplayPlayletDetailUnlockFlowEnd" otherDic:@{@"info": success ? @"success" : @"failure" } error:nil];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayPlayletDetailUnlockFlowEnd" otherDic:@{@"info": success ? @"success" : @"failure" } error:nil];
     }];
     // 点击混排中进入跳转播放页的按钮
-    [self.playletAd setShortplayClickAdViewEventBlock:^{
-        [weakSelf callbackWithEvent:@"ShortplayClickAdView" otherDic:@{} error:nil];
+    [self.playletAd setShortplayClickEnterViewBlock:^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayClickEnterView" otherDic:@{} error:nil];
     }];
     // 本剧集观看完毕，切到下一部短剧回调
     [self.playletAd setShortplayNextPlayletWillPlayBlock:^{
-        [weakSelf callbackWithEvent:@"ShortplayNextPlayletWillPlay" otherDic:@{} error:nil];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayNextPlayletWillPlay" otherDic:@{} error:nil];
     }];
     // 发起广告请求
     [self.playletAd setShortplaySendAdRequestBlock:^{
-        [weakSelf callbackWithEvent:@"ShortplaySendAdRequest" otherDic:@{} error:nil];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplaySendAdRequest" otherDic:@{} error:nil];
     }];
     // 广告加载成功
     [self.playletAd setShortplayAdLoadSuccessBlock:^{
-        [weakSelf callbackWithEvent:@"ShortplayAdLoadSuccess" otherDic:@{} error:nil];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayAdLoadSuccess" otherDic:@{} error:nil];
     }];
     // 广告加载失败
     [self.playletAd setShortplayAdLoadFailBlock:^(NSError * _Nonnull error) {
-        [weakSelf callbackWithEvent:@"ShortplayAdLoadFail" otherDic:@{} error:nil];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayAdLoadFail" otherDic:@{} error:error];
     }];
     // 广告填充失败
     [self.playletAd setShortplayAdFillFailBlock:^{
-        [weakSelf callbackWithEvent:@"ShortplayAdFillFail" otherDic:@{} error:nil];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayAdFillFail" otherDic:@{} error:nil];
     }];
     // 广告曝光
     [self.playletAd setShortplayAdWillShowBlock:^{
-        [weakSelf callbackWithEvent:@"ShortplayAdWillShow" otherDic:@{} error:nil];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayAdWillShow" otherDic:@{} error:nil];
     }];
     // 点击广告
     [self.playletAd setShortplayClickAdViewEventBlock:^{
-        [weakSelf callbackWithEvent:@"ShortplayClickAdView" otherDic:@{} error:nil];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayClickAdView" otherDic:@{} error:nil];
     }];
     // 激励视频广告结束
     [self.playletAd setShortplayVideoRewardFinishEventBlock:^{
-        [weakSelf callbackWithEvent:@"ShortplayVideoRewardFinish" otherDic:@{} error:nil];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayVideoRewardFinish" otherDic:@{} error:nil];
     }];
     // 激励视频广告跳过
     [self.playletAd setShortplayVideoRewardSkipEventBlock:^{
-        [weakSelf callbackWithEvent:@"ShortplayVideoRewardSkip" otherDic:@{} error:nil];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayVideoRewardSkip" otherDic:@{} error:nil];
     }];
-    
+    // 视频切换时的回调
+    [self.playletAd setShortplayDrawVideoCurrentVideoChangedBlock:^(NSInteger index) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayDrawVideoCurrentVideoChanged" otherDic:@{@"info":[NSString stringWithFormat:@"%ld", index]} error:nil];
+    }];
+    // 加载失败按钮点击重试回调
+    [self.playletAd setShortplayDrawVideoDidClickedErrorButtonRetryBlock:^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayDrawVideoDidClickedErrorButtonRetry" otherDic:@{} error:nil];
+    }];
+    // 默认关闭按钮被点击的回调
+    [self.playletAd setShortplayDrawVideoCloseButtonClickedBlock:^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayDrawVideoCloseButtonClicked" otherDic:@{} error:nil];
+    }];
+    // 数据刷新完成回调
+    [self.playletAd setShortplayDrawVideoDataRefreshCompletionBlock:^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        [strongSelf callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayDrawVideoDataRefreshCompletion" otherDic:@{} error:nil];
+    }];
+    // tab栏切换控制器的回调
     [self.playletAd loadAd:config];
 }
 
@@ -177,32 +224,25 @@ static ZjPlayletPlugin *zjPlayletFlutterPlugin = nil;
 }
 
 /**回调事件*/
-- (void)callbackWithEvent:(NSString *)event otherDic:(NSDictionary *)otherDic error:(NSError *)error {
-    if (self.callback) {
-        NSMutableDictionary *result = [NSMutableDictionary dictionary];
-        [result setObject:event.length > 0 ?event :@"未知事件" forKey:@"event"];
-        if (error) {
-            [result setObject:[error convertJSONString] forKey:@"error"];
-        } else {
-            [result setObject:@"" forKey:@"error"];
-        }
-        if (otherDic) {
-            [result addEntriesFromDictionary:otherDic];
-        }
-        self.callback(result);
+- (void)callbackWithFunctionName:(NSString *)functionName
+                       eventName:(NSString *)eventName
+                        otherDic:(NSDictionary *)otherDic 
+                           error:(NSError *)error {
+    NSMutableDictionary *result = [NSMutableDictionary dictionary];
+    [result setObject:eventName.length > 0 ?eventName :@"未知事件" forKey:@"event"];
+    if (error) {
+        [result setObject:[error convertJSONString] forKey:@"error"];
+    } else {
+        [result setObject:@"" forKey:@"error"];
     }
+    if (otherDic) {
+        [result addEntriesFromDictionary:otherDic];
+    }
+    if (functionName && functionName.length > 0) {
+        [result setValue:functionName forKey:@"functionName"];
+    }
+    [_messageChannel sendMessage:result];
 }
 
-- (FlutterError * _Nullable)onCancelWithArguments:(id _Nullable)arguments { 
-    self.callback = nil;
-    return nil;
-}
-
-- (FlutterError * _Nullable)onListenWithArguments:(id _Nullable)arguments eventSink:(nonnull FlutterEventSink)events {
-    if (events) {
-        self.callback = events;
-    }
-    return nil;
-}
 
 @end

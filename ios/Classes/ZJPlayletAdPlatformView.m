@@ -1,94 +1,110 @@
 //
-//  ZJPlayletWrapper.m
+//  ZJPlayletAdPlatformView.m
 //  zj_playlet_plugin
 //
-//  Created by 麻明康 on 2025/6/30.
+//  Created by 麻明康 on 2025/7/21.
 //
 
-#import "ZJPlayletWrapper.h"
-#import <ZJSDK/ZJTubePageAd.h>
+#import "ZJPlayletAdPlatformView.h"
 #import "ZJPlayletTool.h"
-#import "ZJPlayletConfig.h"
+#import <ZJSDK/ZJTubePageAd.h>
+#import "ZJPlayletPlugin.h"
 
-@interface ZJPlayletWrapper () <ZJContentPageVideoStateDelegate,ZJContentPageStateDelegate, ZJContentPageLoadCallBackDelegate, ZJShortPlayCustomViewDelegate, ZJShortPlayInterfaceDelegate, ZJShortPlayCustomDrawAdViewDelegate, ZJShortPlayDrawVideoViewControllerBannerDelegate, ZJShortPlayAdDelegate, ZJShortPlayPlayerDelegate>
+
+@interface ZJPlayletAdPlatformView () <ZJContentPageVideoStateDelegate,ZJContentPageStateDelegate, ZJContentPageLoadCallBackDelegate, ZJShortPlayCustomViewDelegate, ZJShortPlayInterfaceDelegate, ZJShortPlayCustomDrawAdViewDelegate, ZJShortPlayDrawVideoViewControllerBannerDelegate, ZJShortPlayAdDelegate, ZJShortPlayPlayerDelegate>
+
+
+@property (nonatomic, strong) UIView *containerView;
+
+@property (nonatomic, assign) int64_t viewId;
 
 @property (nonatomic, strong) ZJTubePageAd *tubePageAd;
 
 @property (nonatomic, weak) UIViewController *weakTubeVC;
 
-@property (nonatomic, strong) ZJPlayletConfig *playletConfig;
-
 @end
 
-@implementation ZJPlayletWrapper
+@implementation ZJPlayletAdPlatformView
 
-- (void)loadAd:(ZJPlayletConfig *)config {
-    self.playletConfig = config;
-    ZJTubePageConfig *tubePageConfig = [[ZJTubePageConfig alloc] init];
-    NSArray *JSONConfigArr = [config.JSONConfigPath componentsSeparatedByString:@"."];
-    if (JSONConfigArr.count > 1) {
-        tubePageConfig.JSONConfigPath = [[NSBundle mainBundle] pathForResource:JSONConfigArr.firstObject ofType:JSONConfigArr.lastObject];
-    } else {
-        tubePageConfig.JSONConfigPath = [[NSBundle mainBundle] pathForResource:JSONConfigArr.firstObject ofType:@"json"];
-    }
-    tubePageConfig.freeEpisodesCount = config.freeEpisodesCount;
-    tubePageConfig.unlockEpisodesCountUsingAD = config.unlockEpisodesCountUsingAD;
-    tubePageConfig.posId = config.posId;
-    tubePageConfig.adType = config.adType;
-    tubePageConfig.hideLikeIcon = config.hideLikeIcon;
-    tubePageConfig.hideCollectIcon = config.hideCollectIcon;
-    tubePageConfig.disableLongPressSpeed = config.disableLongPressSpeed;
-    tubePageConfig.disableDoubleClickLike = config.disableDoubleClickLike;
-    if (config.offsetY > 0) {
-        CGSize viewSize = [UIScreen mainScreen].bounds.size;
-        tubePageConfig.viewSize = CGSizeMake(viewSize.width, viewSize.height - config.offsetY);
-    }
-    tubePageConfig.showCloseButton = YES;
-    self.tubePageAd = [[ZJTubePageAd alloc]initWithPlacementId:config.adId];
-    self.tubePageAd.tubePageConfig = tubePageConfig;
-    self.tubePageAd.videoStateDelegate = self;
-    self.tubePageAd.stateDelegate = self;
-    self.tubePageAd.loadCallBackDelegate = self;
-    // ====================
-    /// 短剧播放器回调
-    self.tubePageAd.playerCallbackDelegate = self;
-    /// 广告回调
-    self.tubePageAd.adCallbackDelegate = self;
-
-    /// 业务接口回调
-    self.tubePageAd.interfaceCallbackDelegate = self;
-
-    /// 自定义详情页cell试图回调
-    self.tubePageAd.customViewCallBackDelegate = self;
-
-    /// 自定义Draw流的subview回调
-    self.tubePageAd.customDrawAdViewCallBackDelegate = self;
-
-    /// 滑滑溜底部自定义Banner广告
-    self.tubePageAd.drawVideoViewBannerCallbackDelegate = self;
-    
-    [self.tubePageAd loadAd];
-}
-
-- (void)showAd
+- (instancetype)initWithFrame:(CGRect)frame
+               viewIdentifier:(int64_t)viewId
+                    arguments:(id _Nullable)args
+                    registrar:(NSObject<FlutterPluginRegistrar> *)registrar
 {
-    self.weakTubeVC = self.tubePageAd.tubePageViewController;
-    self.weakTubeVC.modalPresentationStyle = UIModalPresentationFullScreen;
-    if (self.weakTubeVC) {
-        // 快手只能push
-        if (self.tubePageAd.currentAdapter.config.platformType == ZJAdPlatform_KS) {
-            [[ZJPlayletTool findCurrentShowingViewController] addChildViewController:self.weakTubeVC];
-            [[ZJPlayletTool findCurrentShowingViewController].view addSubview:self.weakTubeVC.view];
+    if (self = [super init]) {
+        self.viewId = viewId;
+        NSString *adId = [args objectForKey:@"adId"];
+        NSString *JSONConfigPath = [args objectForKey:@"JSONConfigPath"];
+        int freeEpisodesCount = [[args objectForKey:@"freeEpisodesCount"] intValue];
+        int unlockEpisodesCountUsingAD = [[args objectForKey:@"unlockEpisodesCountUsingAD"] intValue];
+        double width = [[args objectForKey:@"width"] doubleValue];
+        double height = [[args objectForKey:@"height"] doubleValue];
+        BOOL hideLikeIcon = [[args objectForKey:@"hideLikeIcon"] boolValue];
+        BOOL hideCollectIcon = [[args objectForKey:@"hideCollectIcon"] boolValue];
+        BOOL disableDoubleClickLike = [[args objectForKey:@"disableDoubleClickLike"] boolValue];
+        BOOL disableLongPressSpeed = [[args objectForKey:@"disableLongPressSpeed"] boolValue];
+        int adType = [[args objectForKey:@"adType"] intValue];
+        NSString *posId = [args objectForKey:@"posId"];
+        ZJTubePageConfig *tubePageConfig = [[ZJTubePageConfig alloc] init];
+        NSArray *JSONConfigArr = [JSONConfigPath componentsSeparatedByString:@"."];
+        if (JSONConfigArr.count > 1) {
+            tubePageConfig.JSONConfigPath = [[NSBundle mainBundle] pathForResource:JSONConfigArr.firstObject ofType:JSONConfigArr.lastObject];
         } else {
-            // 穿山甲目前用presentViewController的方式
-            [[ZJPlayletTool findCurrentShowingViewController] presentViewController:self.weakTubeVC animated:YES completion:^{
-                
-            }];
+            tubePageConfig.JSONConfigPath = [[NSBundle mainBundle] pathForResource:JSONConfigArr.firstObject ofType:@"json"];
         }
-    } else {
-        NSLog(@"未能创建对应广告位VC，建议从以下原因排查：\n 1，内容包需要手动导入快手模块（pod公共仓库中的SDK不支持内容包）\n 2，确保sdk已注册成功 \n 3，确保广告位正确可用");
+        tubePageConfig.freeEpisodesCount = freeEpisodesCount;
+        tubePageConfig.unlockEpisodesCountUsingAD = unlockEpisodesCountUsingAD;
+        tubePageConfig.hideLikeIcon = hideLikeIcon;
+        tubePageConfig.hideCollectIcon = hideCollectIcon;
+        tubePageConfig.disableLongPressSpeed = disableLongPressSpeed;
+        tubePageConfig.disableDoubleClickLike = disableDoubleClickLike;
+        tubePageConfig.viewSize = CGSizeMake(width, height);
+        tubePageConfig.showCloseButton = NO;
+        if (adType == 1) {
+            tubePageConfig.adType = ZJTubePageADTypeRewardVideo;
+        } else {
+            tubePageConfig.adType = ZJTubePageADTypeInterstitial;
+        }
+        if (posId && posId.length > 0) {
+            tubePageConfig.posId = posId;
+        }
+        self.tubePageAd = [[ZJTubePageAd alloc]initWithPlacementId:adId];
+        self.tubePageAd.tubePageConfig = tubePageConfig;
+        self.tubePageAd.videoStateDelegate = self;
+        self.tubePageAd.stateDelegate = self;
+        self.tubePageAd.loadCallBackDelegate = self;
+        // ====================
+        /// 短剧播放器回调
+        self.tubePageAd.playerCallbackDelegate = self;
+        /// 广告回调
+        self.tubePageAd.adCallbackDelegate = self;
+
+        /// 业务接口回调
+        self.tubePageAd.interfaceCallbackDelegate = self;
+
+        /// 自定义详情页cell试图回调
+        self.tubePageAd.customViewCallBackDelegate = self;
+
+        /// 自定义Draw流的subview回调
+        self.tubePageAd.customDrawAdViewCallBackDelegate = self;
+
+        /// 滑滑溜底部自定义Banner广告
+        self.tubePageAd.drawVideoViewBannerCallbackDelegate = self;
+        
+        [self.tubePageAd loadAd];
+        
+        
+        self.containerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, width, height)];
+        self.containerView.backgroundColor = [UIColor clearColor];
     }
+    return self;
 }
+
+- (UIView *)view
+{
+    return _containerView;
+}
+
 
 #pragma mark - ZJContentPageStateDelegate
 
@@ -140,7 +156,7 @@
 - (void)zj_videoDidStartPlay:(id<ZJContentInfo>)videoContent
 {
     NSLog(@"---------->>>>>>>%s", __FUNCTION__);
-    _videoDidStartPlayBlock ? _videoDidStartPlayBlock() : nil;
+//    _videoDidStartPlayBlock ? _videoDidStartPlayBlock() : nil;
 }
 /**
 * 视频暂停播放
@@ -149,7 +165,7 @@
 - (void)zj_videoDidPause:(id<ZJContentInfo>)videoContent
 {
     NSLog(@"---------->>>>>>>%s", __FUNCTION__);
-    _videoDidPauseBlock ? _videoDidPauseBlock() : nil;
+//    _videoDidPauseBlock ? _videoDidPauseBlock() : nil;
 }
 /**
 * 视频恢复播放
@@ -158,7 +174,7 @@
 - (void)zj_videoDidResume:(id<ZJContentInfo>)videoContent
 {
     NSLog(@"---------->>>>>>>%s", __FUNCTION__);
-    _videoDidResumeBlock ? _videoDidResumeBlock() : nil;
+//    _videoDidResumeBlock ? _videoDidResumeBlock() : nil;
 }
 /**
 * 视频停止播放
@@ -168,7 +184,7 @@
 - (void)zj_videoDidEndPlay:(id<ZJContentInfo>)videoContent isFinished:(BOOL)finished
 {
     NSLog(@"---------->>>>>>>%s", __FUNCTION__);
-    _videoDidEndPlayBlock ? _videoDidEndPlayBlock() : nil;
+//    _videoDidEndPlayBlock ? _videoDidEndPlayBlock() : nil;
 }
 /**
 * 视频播放失败
@@ -216,13 +232,21 @@
 /// 内容加载成功
 - (void)zj_contentPageLoadSuccess
 {
-    _playletLoadSuccessBlock ? _playletLoadSuccessBlock() : nil;
+    self.weakTubeVC = self.tubePageAd.tubePageViewController;
+    if (self.weakTubeVC) {
+        [self.weakTubeVC.view setFrame:self.containerView.bounds];
+        [self.containerView addSubview:self.weakTubeVC.view];
+        [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"PlayletLoadSuccess" otherDic:@{} error:nil];
+    } else {
+        [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"PlayletLoadFailure" otherDic:@{} error:nil];
+    }
+    
 }
 
 /// 内容加载失败
 - (void)zj_contentPageLoadFailure:(NSError *)error
 {
-    _playletLoadFailureBlock ? _playletLoadFailureBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"PlayletLoadFailure" otherDic:@{} error:nil];
 }
 
 // 自定义详情页cell试图
@@ -266,13 +290,18 @@
 /*! @abstract 解锁流程开始 */
 - (void)zj_shortplayPlayletDetailUnlockFlowStart:(id<ZJContentInfo>)content
 {
-    _shortplayPlayletDetailUnlockFlowStartBlock ? _shortplayPlayletDetailUnlockFlowStartBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayPlayletDetailUnlockFlowStart" otherDic:@{} error:nil];
 }
 
 /*! @abstract 解锁流程取消 */
 - (void)zj_shortplayPlayletDetailUnlockFlowCancel:(id<ZJContentInfo>)content
 {
-    _shortplayPlayletDetailUnlockFlowCancelBlock ? _shortplayPlayletDetailUnlockFlowCancelBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayPlayletDetailUnlockFlowCancel" otherDic:@{} error:nil];
+}
+
+- (BOOL)zj_shortplayPlayletDetailCustomUnlockView
+{
+    return NO;
 }
 
 /*! 自定义解锁弹窗 cancelUnlockCallback取消回调，unlockCallback确认的回调 */
@@ -280,7 +309,7 @@
                                                 unlockCallback:(void(^)(void))unlockCallback
 {
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"看广告解锁"
-                                                                   message:[NSString stringWithFormat:@"看一个激励广告解锁%ld集", self.playletConfig.unlockEpisodesCountUsingAD]
+                                                                   message:[NSString stringWithFormat:@"看一个激励广告解锁%ld集", self.tubePageAd.tubePageConfig.unlockEpisodesCountUsingAD]
                                                             preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:@"退出" style:UIAlertActionStyleCancel handler:^(UIAlertAction * _Nonnull action) {
         cancelUnlockCallback();
@@ -301,20 +330,20 @@
                            success:(BOOL)success
                              error:(NSError * _Nullable)error
 {
-    _shortplayPlayletDetailUnlockFlowEndBlock ? _shortplayPlayletDetailUnlockFlowEndBlock(success) : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayPlayletDetailUnlockFlowEnd" otherDic:@{@"info": success ? @"success" : @"failure" } error:nil];
 }
 
 
 /*! @abstract 点击混排中进入跳转播放页的按钮 */
 - (void)zj_shortplayClickEnterView:(id<ZJContentInfo>)content
 {
-    _shortplayClickEnterViewBlock ? _shortplayClickEnterViewBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayClickEnterView" otherDic:@{} error:nil];
 }
 
 /*! @abstract 本剧集观看完毕，切到下一部短剧回调 */
 - (void)zj_shortplayNextPlayletWillPlay:(id<ZJContentInfo>)content
 {
-    _shortplayNextPlayletWillPlayBlock ? _shortplayNextPlayletWillPlayBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayNextPlayletWillPlay" otherDic:@{} error:nil];
 }
 
 - (UIView *)zj_shortplayPlayletDetailBottomBanner:(id<ZJContentInfo>)content
@@ -362,31 +391,31 @@
 /*! @abstract 发起广告请求 */
 - (void)zj_shortplaySendAdRequest:(id<ZJContentInfo>)content
 {
-    _shortplaySendAdRequestBlock ? _shortplaySendAdRequestBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplaySendAdRequest" otherDic:@{} error:nil];
 }
 
 /*! @abstract 广告加载成功 */
 - (void)zj_shortplayAdLoadSuccess:(id<ZJContentInfo>)content
 {
-    _shortplayAdLoadSuccessBlock ? _shortplayAdLoadSuccessBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayAdLoadSuccess" otherDic:@{} error:nil];
 }
 
 /*! @abstract 广告加载失败 */
 - (void)zj_shortplayAdLoadFail:(id<ZJContentInfo>)content error:(NSError *)error
 {
-    _shortplayAdLoadFailBlock ? _shortplayAdLoadFailBlock(error) : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayAdLoadFail" otherDic:@{} error:error];
 }
 
 /*! @abstract 广告填充失败 */
 - (void)zj_shortplayAdFillFail:(id<ZJContentInfo>)content
 {
-    _shortplayAdFillFailBlock ? _shortplayAdFillFailBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayAdFillFail" otherDic:@{} error:nil];
 }
 
 /*! @abstract 广告曝光 */
 - (void)zj_shortplayAdWillShow:(id<ZJContentInfo>)content
 {
-    _shortplayAdWillShowBlock ? _shortplayAdWillShowBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayAdWillShow" otherDic:@{} error:nil];
 }
 
 /*! @abstract 视频广告开始播放 */
@@ -416,7 +445,7 @@
 /*! @abstract 点击广告 */
 - (void)zj_shortplayClickAdViewEvent:(id<ZJContentInfo>)content
 {
-    _shortplayClickAdViewEventBlock ? _shortplayClickAdViewEventBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayClickAdView" otherDic:@{} error:nil];
 }
 /*! @abstract 广告缓冲 */
 - (void)zj_shortplayVideoBufferEvent:(id<ZJContentInfo>)content
@@ -427,13 +456,13 @@
 /*! @abstract 激励视频广告结束 */
 - (void)zj_shortplayVideoRewardFinishEvent:(id<ZJContentInfo>)content
 {
-    _shortplayVideoRewardFinishEventBlock ? _shortplayVideoRewardFinishEventBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayVideoRewardFinish" otherDic:@{} error:nil];
 }
 
 /*! @abstract 激励视频广告跳过 */
 - (void)zj_shortplayVideoRewardSkipEvent:(id<ZJContentInfo>)content
 {
-    _shortplayVideoRewardSkipEventBlock ? _shortplayVideoRewardSkipEventBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayVideoRewardSkip" otherDic:@{} error:nil];
 }
 
 // 从csj开始使用
@@ -443,37 +472,68 @@
 /*! @abstract 视频切换时的回调 */
 - (void)zj_shortplayDrawVideoCurrentVideoChanged:(NSInteger)index adapter:(id<ZJContentInfo>)content
 {
-    _shortplayDrawVideoCurrentVideoChangedBlock ? _shortplayDrawVideoCurrentVideoChangedBlock(index) : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayDrawVideoCurrentVideoChanged" otherDic:@{@"info":[NSString stringWithFormat:@"%ld", index]} error:nil];
 }
 
 /*! @abstract 加载失败按钮点击重试回调 */
 - (void)zj_shortplayDrawVideoDidClickedErrorButtonRetry:(id<ZJContentInfo>)content
 {
-    _shortplayDrawVideoDidClickedErrorButtonRetryBlock ? _shortplayDrawVideoDidClickedErrorButtonRetryBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayDrawVideoDidClickedErrorButtonRetry" otherDic:@{} error:nil];
 }
 
 /*! @abstract 默认关闭按钮被点击的回调 */
 - (void)zj_shortplayDrawVideoCloseButtonClicked:(id<ZJContentInfo>)content
 {
-    _shortplayDrawVideoCloseButtonClickedBlock ? _shortplayDrawVideoCloseButtonClickedBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayDrawVideoCloseButtonClicked" otherDic:@{} error:nil];
 }
 
 /*! @abstract 数据刷新完成回调 */
 - (void)zj_shortplayDrawVideoDataRefreshCompletion:(NSError *)error content:(id<ZJContentInfo>)content
 {
-    _shortplayDrawVideoDataRefreshCompletionBlock ? _shortplayDrawVideoDataRefreshCompletionBlock() : nil;
+    [[ZjPlayletPlugin shareInstance] callbackWithFunctionName:@"loadPlayletAd" eventName:@"ShortplayDrawVideoDataRefreshCompletion" otherDic:@{} error:nil];
 }
 
 /*! @abstract tab栏切换控制器的回调*/
 - (void)zj_shortplayPageViewControllerSwitchToIndex:(NSInteger)index content:(id<ZJContentInfo>)content
 {
-    _shortplayPageViewControllerSwitchToIndexBlock ? _shortplayPageViewControllerSwitchToIndexBlock(index) : nil;
+//    _shortplayPageViewControllerSwitchToIndexBlock ? _shortplayPageViewControllerSwitchToIndexBlock(index) : nil;
 }
 
 /**! @abstract 推荐页面底部banner视图**/
 - (UIView *)zj_shortplayDrawVideoVCBottomBannerView:(UIViewController *)vc content:(id<ZJContentInfo>)content
 {
     return nil;
+}
+
+
+@end
+
+
+//**********************************************************************************//
+
+@interface ZJPlayletAdPlatformViewFactory ()
+
+@property (nonatomic, strong) NSObject <FlutterPluginRegistrar> *registrar;
+
+@end
+
+@implementation ZJPlayletAdPlatformViewFactory
+
+- (instancetype)initWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar
+{
+    if (self = [super init]) {
+        _registrar = registrar;
+    }
+    return self;
+}
+
+- (NSObject<FlutterMessageCodec> *)createArgsCodec
+{
+    return [FlutterJSONMessageCodec sharedInstance];
+}
+
+- (NSObject<FlutterPlatformView> *)createWithFrame:(CGRect)frame viewIdentifier:(int64_t)viewId arguments:(id)args {
+    return [[ZJPlayletAdPlatformView alloc] initWithFrame:frame viewIdentifier:viewId arguments:args registrar:_registrar];
 }
 
 @end

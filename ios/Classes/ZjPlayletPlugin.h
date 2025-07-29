@@ -1,11 +1,15 @@
 #import <Flutter/Flutter.h>
 
-@interface ZjPlayletPlugin : NSObject<FlutterPlugin, FlutterStreamHandler>
+@interface ZjPlayletPlugin : NSObject<FlutterPlugin>
 
 @property (nonatomic, strong) NSObject <FlutterBinaryMessenger> *messenger;
 
-@property (nonatomic, strong)  FlutterMethodChannel  *methodChannel;
-
 + (ZjPlayletPlugin *)shareInstance;
+
+/**回调事件*/
+- (void)callbackWithFunctionName:(NSString *)functionName
+                       eventName:(NSString *)eventName
+                        otherDic:(NSDictionary *)otherDic
+                           error:(NSError *)error;
 
 @end

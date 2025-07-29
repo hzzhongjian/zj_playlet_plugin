@@ -39,6 +39,17 @@
     if ([map.allKeys containsObject:@"offsetY"]) {
         config.offsetY = [[map objectForKey:@"offsetY"] doubleValue];
     }
+    if ([map.allKeys containsObject:@"posId"]) {
+        config.posId = [map objectForKey:@"posId"];
+    }
+    if ([map.allKeys containsObject:@"adType"]) {
+        NSInteger adType = [[map objectForKey:@"adType"] integerValue];
+        if (adType == 1) {
+            config.adType = ZJTubePageADTypeRewardVideo;
+        } else {
+            config.adType = ZJTubePageADTypeInterstitial;
+        }
+    }
     return config;
 }
 

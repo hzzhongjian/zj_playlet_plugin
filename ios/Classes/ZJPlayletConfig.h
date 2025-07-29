@@ -6,6 +6,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#import <ZJSDK/ZJTubePageAd.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -29,6 +30,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) BOOL disableLongPressSpeed;
 /// 距离屏幕顶端的距离
 @property (nonatomic, assign) double offsetY;
+
+@property (nonatomic, assign) ZJTubePageADType adType;
+
+@property (nonatomic, copy) NSString *posId;
 
 + (ZJPlayletConfig *)fromMap:(NSDictionary *)map;
 

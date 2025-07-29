@@ -47,6 +47,7 @@
 // 判断字符串是否为空（YES：空）
 + (BOOL)isEmptyString:(NSString *)string {
     if (string) {
+        
     } else {
         return YES;
     }
